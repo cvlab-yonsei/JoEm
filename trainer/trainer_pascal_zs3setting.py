@@ -15,14 +15,15 @@ class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self,
-                 visual_encoder, semantic_encoder,
-                 optimizer, optimizer_gen,
-                 evaluator,
-                 config,
-                 train_loader, val_loader=None,
-                 lr_scheduler=None, len_epoch=None, embeddings=None,
-                 ):
+    def __init__(
+        self,
+        visual_encoder, semantic_encoder,
+        optimizer, optimizer_gen,
+        evaluator,
+        config,
+        train_loader, val_loader=None, test_loader=None,
+        lr_scheduler=None, len_epoch=None, embeddings=None,
+    ):
 
         super().__init__(config)
 
@@ -60,47 +61,42 @@ class Trainer(BaseTrainer):
 
         self.val_loader = val_loader
         self.do_validation = self.val_loader is not None
+        self.test_loader = test_loader
+
         self.lr_scheduler = lr_scheduler
         self.log_step = int(np.sqrt(train_loader.batch_size))
 
         self.metric_ftns = [getattr(self.evaluator, met) for met in config['metrics']]
-        self.train_metrics = MetricTracker('loss', 'loss_CE', 'loss_GEN', 'loss_KL',
-                                           writer=self.writer,
-                                           colums=['total', 'counts', 'average'],
-                                           )
+        self.train_metrics = MetricTracker(
+            'loss',
+            writer=self.writer,
+            colums=['total', 'counts', 'average'],
+        )
         self.valid_metrics = MetricTracker_scalars(writer=self.writer)
         
         self.change_label = False
         if config['arch']['args']['num_classes'] != 21:
             self.change_label = True
 
-        if config.resume is not None:
-            self._resume_checkpoint(config.resume)
-
         self.RATIO = config['hyperparameter']['ratio']
-        self.LAMBDA = config['hyperparameter']['lamb']
         self.TEMP = config['hyperparameter']['temperature']
-        self.THRES = config['hyperparameter']['sigma']
+        self.ALPHA = config['hyperparameter']['alpha']
+        self.SIGMA = config['hyperparameter']['sigma']
 
         self.logger.info('-' * 30)
         self.logger.info('BAR Loss')
-        self.logger.info('  **Ratio : %.4f**' % (self.RATIO))
+        self.logger.info('  **BAR : %.4f**' % (self.RATIO))
 
         self.logger.info('SC Loss')
-        self.logger.info('  **Lambda: %.4f**' % (self.LAMBDA))
         self.logger.info('  **Temp  : %d**' % (self.TEMP))
 
-        self.logger.info('Inference')
-        self.logger.info('  **Thres : %.4f**' % (self.THRES))
+        self.logger.info('ALPHA: %.4f**' % (self.ALPHA))
         self.logger.info('-' * 30)
 
-    def _train_epoch(self, epoch):
-        """
-        Training logic for an epoch
+        if config.resume is not None:
+            self._resume_checkpoint(config.resume)
 
-        :param epoch: Integer, current training epoch.
-        :return: A log that contains average loss and metric in this epoch.
-        """
+    def _train_epoch(self, epoch):
 
         self.visual_encoder.train()
         if isinstance(self.visual_encoder, nn.DataParallel):
@@ -157,7 +153,7 @@ class Trainer(BaseTrainer):
 
             # Center Loss
             loss_gen = ((proto[target_resize != 255] - real_feature[target_resize != 255])**2).mean()
-            
+
             # ===========
             #  CE Loss
             # ===========
@@ -189,9 +185,9 @@ class Trainer(BaseTrainer):
             )
             proto_relation = F.log_softmax(-proto_relation_l2, dim=-1)  # [15, 15]
 
-            loss_kl = nn.KLDivLoss(reduction='batchmean')(proto_relation, semantic_relation)  # input:log, target:prob.
+            loss_sc = nn.KLDivLoss(reduction='batchmean')(proto_relation, semantic_relation)  # input:log, target:prob.
 
-            loss = loss_gen + loss_ce + self.LAMBDA * loss_kl
+            loss = loss_gen + loss_ce + self.ALPHA * loss_sc
             loss.backward()
 
             self.optimizer.step()
@@ -199,14 +195,15 @@ class Trainer(BaseTrainer):
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', loss.item())
-            self.train_metrics.update('loss_CE', loss_ce.item())
-            self.train_metrics.update('loss_GEN', loss_gen.item())
-            self.train_metrics.update('loss_KL', loss_kl.item())
 
             # Get First lr
             if batch_idx == 0:
-                self.writer.add_scalars('lr', {'lr_CE': get_lr(self.optimizer)[0],
-                                               'lr_Gen': get_lr(self.optimizer_gen)[0]}, epoch - 1)
+                self.writer.add_scalars(
+                    'lr',
+                    {'lr_CE': get_lr(self.optimizer)[0],
+                     'lr_Gen': get_lr(self.optimizer_gen)[0]},
+                    epoch - 1
+                )
 
             if batch_idx == self.len_epoch:
                 break
@@ -226,20 +223,15 @@ class Trainer(BaseTrainer):
         return log, val_flag
 
     def _valid_epoch(self, epoch):
-        """
-        Validate after training an epoch
-
-        :param epoch: Integer, current training epoch.
-        :return: A log that contains information about validation
-        """
         self.visual_encoder.eval()
         self.semantic_encoder.eval()
         prototype = self.semantic_encoder(self.embeddings)  # [21, 300]
-        
+
         log = {}
         self.evaluator.reset()
         with torch.no_grad():
             for batch_idx, data in enumerate(tqdm.tqdm(self.val_loader)):
+
                 data['image'], data['label'] = data['image'].to(self.device), data['label'].to(self.device)
                 target = data['label'].cpu().numpy()
 
@@ -262,7 +254,7 @@ class Trainer(BaseTrainer):
                 l2 = torch.clone(cdist)  # (N, 20, H, W)
                 for idx, class_idx in enumerate(self.class_idx):
                     if class_idx in self.unseen_classes_idx:
-                        l2[:, idx, :, :] = l2[:, idx, :, :] * self.THRES  # Threshold
+                        l2[:, idx, :, :] = l2[:, idx, :, :] * self.SIGMA  # Threshold
 
                 pred = torch.clone(top_k.indices[:, 0, :, :])  # [N, H, W]
                 l2_min = l2.gather(1, (top_k.indices[:, 0, :, :]).unsqueeze(1)).squeeze(1)  # [N, H, W]
@@ -283,6 +275,72 @@ class Trainer(BaseTrainer):
                 else:
                     self.valid_metrics.update(met.__name__, [met()['overall']], 'overall', n=1)
 
+                if 'harmonic' in met().keys():
+                    log.update({met.__name__ + '_harmonic': met()['harmonic']})
+                if 'seen' in met().keys():
+                    log.update({met.__name__ + '_seen': met()['seen']})
+                if 'unseen' in met().keys():
+                    log.update({met.__name__ + '_unseen': met()['unseen']})
+                if 'overall' in met().keys():
+                    log.update({met.__name__ + '_overall': met()['overall']})
+                if 'by_class' in met().keys():
+                    by_class_str = '\n'
+                    for i in range(len(met()['by_class'])):
+                        if i in get_unseen_idx(self.config['data_loader']['args']['n_unseen_classes']):
+                            by_class_str = by_class_str + '%2d *%s %.3f\n' % (i, VOC[i], met()['by_class'][i])
+                        else:
+                            by_class_str = by_class_str + '%2d  %s %.3f\n' % (i, VOC[i], met()['by_class'][i])
+                    log.update({met.__name__ + '_by_class': by_class_str})
+        return log
+
+    def _test(self):
+        self.logger.info("TEST")
+
+        self.visual_encoder.eval()
+        self.semantic_encoder.eval()
+        prototype = self.semantic_encoder(self.embeddings)  # [21, 300]
+
+        log = {}
+        self.evaluator.reset()
+        with torch.no_grad():
+            for batch_idx, data in enumerate(tqdm.tqdm(self.test_loader)):
+                data['image'], data['label'] = data['image'].to(self.device), data['label'].to(self.device)
+                target = data['label'].cpu().numpy()
+
+                _, real_feature = self.visual_encoder(data['image'])
+                N, C, h, w = real_feature.shape
+
+                real_feature = F.interpolate(real_feature, size=data['image'].size()[2:], mode="bilinear", align_corners=False)
+
+                real_feature = real_feature.permute(0, 2, 3, 1)
+
+                cdist = torch.cdist(
+                    real_feature,
+                    torch.index_select(prototype, 0, torch.Tensor(self.class_idx).long().to(self.device)),
+                    p=2
+                )  # (N, H, W, 21)
+                cdist = cdist**2
+                cdist = cdist.permute(0, 3, 1, 2)  # (N, 21, H, W)
+
+                top_k = torch.topk(cdist, k=2, dim=1, largest=False)
+
+                l2 = torch.clone(cdist)  # (N, 20, H, W)
+                for idx, class_idx in enumerate(self.class_idx):
+                    if class_idx in self.unseen_classes_idx:
+                        l2[:, idx, :, :] = l2[:, idx, :, :] * self.SIGMA  # Threshold
+
+                pred = torch.clone(top_k.indices[:, 0, :, :])  # [N, H, W]
+                l2_min = l2.gather(1, (top_k.indices[:, 0, :, :]).unsqueeze(1)).squeeze(1)  # [N, H, W]
+                for i in range(1):
+                    mask = l2.gather(1, (top_k.indices[:, i + 1, :, :]).unsqueeze(1)).squeeze(1) < l2_min
+                    l2_min[mask] = l2.gather(1, (top_k.indices[:, i + 1, :, :]).unsqueeze(1)).squeeze(1)[mask]
+                    pred[mask] = top_k.indices[:, i + 1, :, :][mask]
+
+                pred = pred.cpu().numpy()
+
+                self.evaluator.add_batch(target, pred)
+            
+            for met in self.metric_ftns:
                 if 'harmonic' in met().keys():
                     log.update({met.__name__ + '_harmonic': met()['harmonic']})
                 if 'seen' in met().keys():
@@ -325,7 +383,7 @@ class Trainer(BaseTrainer):
                 'optimizer': self.optimizer.state_dict(),
                 'monitor_best': self.mnt_best,
             }
-        filename = str(self.checkpoint_dir / 'FE_checkpoint-epoch{}.pth'.format(epoch))
+        filename = str(self.checkpoint_dir / 'fe_checkpoint-epoch{}.pth'.format(epoch))
         torch.save(state, filename)
 
         arch = type(self.semantic_encoder).__name__
@@ -346,7 +404,7 @@ class Trainer(BaseTrainer):
                 'monitor_best': self.mnt_best,
             }
         
-        filename = str(self.checkpoint_dir / 'Gen_checkpoint-epoch{}.pth'.format(epoch))
+        filename = str(self.checkpoint_dir / 'gen_checkpoint-epoch{}.pth'.format(epoch))
         torch.save(state, filename)
 
         self.logger.info("Saving checkpoint: {} ...".format(filename))
@@ -375,7 +433,7 @@ class Trainer(BaseTrainer):
                 'optimizer': self.optimizer.state_dict(),
                 'monitor_best': self.mnt_best,
             }
-        best_path = str(self.checkpoint_dir / 'model_best_FE.pth')
+        best_path = str(self.checkpoint_dir / 'model_best_fe.pth')
         torch.save(state, best_path)
 
         arch = type(self.semantic_encoder).__name__
@@ -395,12 +453,12 @@ class Trainer(BaseTrainer):
                 'optimizer': self.optimizer_gen.state_dict(),
                 'monitor_best': self.mnt_best,
             }
-        best_path = str(self.checkpoint_dir / 'model_best_Gen.pth')
+        best_path = str(self.checkpoint_dir / 'model_best_gen.pth')
         torch.save(state, best_path)
 
         self.logger.info("Saving current best: model_best.pth ...")
 
-    def _resume_checkpoint(self, resume_path): 
+    def _resume_checkpoint(self, resume_path):
         """
         Resume from saved checkpoints
 
@@ -409,20 +467,24 @@ class Trainer(BaseTrainer):
         path_fe = str(resume_path)
         self.logger.info("Loading checkpoint: {} ...".format(path_fe))
         checkpoint = torch.load(path_fe)
-        self.start_epoch = checkpoint['epoch'] + 1
+        if 'epoch' in checkpoint:
+            self.start_epoch = checkpoint['epoch'] + 1
+            self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))
 
         if not self.reset_best_mnt:
-            self.mnt_best = checkpoint['monitor_best']
-            self.logger.info('Monitor Best: %.4f' % (self.mnt_best))
+            if 'monitor_best' in checkpoint:
+                self.mnt_best = checkpoint['monitor_best']
+                self.logger.info('Monitor Best: %.4f' % (self.mnt_best))
             
         if len(self.device_ids) > 1:
             self.logger.info(self.visual_encoder.module.load_state_dict(checkpoint['state_dict']))
         else:
             self.visual_encoder.load_state_dict(checkpoint['state_dict'])
+        
+        if 'optimizer' in checkpoint:
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-
-        path_gen = path_fe.replace('FE', 'Gen')
+        path_gen = path_fe.replace('fe', 'gen')
         self.logger.info("Loading checkpoint: {} ...".format(path_gen))
         path_gen = Path(path_gen)
         checkpoint = torch.load(path_gen)
@@ -432,6 +494,5 @@ class Trainer(BaseTrainer):
         else:
             self.logger.info(self.semantic_encoder.load_state_dict(checkpoint['state_dict']))
 
-        self.optimizer_gen.load_state_dict(checkpoint['optimizer'])
-        
-        self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))
+        if 'optimizer' in checkpoint:
+            self.optimizer_gen.load_state_dict(checkpoint['optimizer'])

@@ -63,22 +63,22 @@
     "optimizer": {
         "type": "SGD",
         "args": {
-            "lr": 0.00025,
-            "weight_decay": 0.0001,
+            "lr": 2.5e-4,
+            "weight_decay": 1e-4,
             "momentum": 0.9
         }
     },
     "optimizer_gen": {
         "type": "Adam",
         "args": {
-            "lr": 0.0002
+            "lr": 2e-4
         }
     },
     "hyperparameter": {
         "ratio": 0.250,
-        "lamb": 0.1,
         "temperature": 5,
-        "sigma": 0.6
+        "alpha": 0.1,
+        "sigma": 0.5
     },
     "lr_scheduler": {
         "type": "LR_Scheduler",
@@ -97,11 +97,10 @@
     ],
     "trainer": {
         "epochs": 50,
-        "save_dir": "saved_final/",
-        "save_period": 50,
-        "validation_period": 1,
+        "save_dir": "saved/",
+        "save_period": 1,
         "verbosity": 2,
-        "monitor": "max val_Mean_Intersection_over_Union_harmonic",
+        "monitor": "off",
         "early_stop": -1,
         "reset_best_mnt": false,
         "tensorboard": true

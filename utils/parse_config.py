@@ -75,6 +75,13 @@ class ConfigParser:
             
         # parse custom cli options into dictionary
         modification = {opt.target: getattr(args, _get_opt_name(opt.flags)) for opt in options}
+
+        if args.device is not None:
+            modification['n_gpu'] = len(args.device.split(','))
+
+        if args.test is not None:
+            modification['test'] = args.test
+
         return cls(config, resume, modification)
 
     def init_obj(self, name, module, *args, **kwargs):

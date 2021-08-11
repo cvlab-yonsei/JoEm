@@ -188,7 +188,6 @@ class ResNet(nn.Sequential):
         self.add_module("layer4", _ResLayer(n_blocks[2], ch[3], ch[4], 1, 2, sync_bn))
         self.add_module("layer5", _ResLayer(n_blocks[3], ch[4], ch[5], 1, 4, sync_bn))
 
-
         if pretrained:
             self._load_pretrained_model(pretrained_path)
 
@@ -197,14 +196,13 @@ class ResNet(nn.Sequential):
         pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
         """
 
-        pretrain_dict = torch.load(pretrained_path)
+        pretrain_dict = torch.load(pretrained_path, map_location=torch.device('cpu'))
         model_dict = {}
         state_dict = self.state_dict()
         for k, v in pretrain_dict.items():
             # Take pretrained weight except FC layers for ImageNet classification
             if k in state_dict:
                 model_dict[k] = v
-                print(k)
         state_dict.update(model_dict)
 
         self.load_state_dict(state_dict)

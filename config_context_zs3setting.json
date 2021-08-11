@@ -73,12 +73,12 @@
     "optimizer_gen": {
         "type": "Adam",
         "args": {
-            "lr": 0.0002
+            "lr": 2e-4
         }
     },
     "hyperparameter": {
-        "lamb": 1e-2,
         "ratio": 0.250,
+        "alpha": 1e-2,
         "temperature": 7,
         "sigma": 0.5
     },
@@ -99,11 +99,10 @@
     ],
     "trainer": {
         "epochs": 200,
-        "save_dir": "saved_context_0811/",
+        "save_dir": "saved/",
         "save_period": 1,
-        "validation_period": 50,
         "verbosity": 2,
-        "monitor": "max val_Mean_Intersection_over_Union_harmonic",
+        "monitor": "off",
         "early_stop": -1,
         "reset_best_mnt": true,
         "tensorboard": false

@@ -1,5 +1,5 @@
 {
-    "name": "pascal_spsetting_fan_out_aspp_bias_true_up_scale_ce",
+    "name": "pascal_spsetting",
     "n_gpu": 4,
     "arch": {
         "type": "DeepLabV2_classifier_600",
@@ -60,7 +60,7 @@
     "optimizer": {
         "type": "SGD",
         "args": {
-            "lr": 0.00025,
+            "lr": 2.5e-4,
             "weight_decay": 0.0001,
             "momentum": 0.9
         }
@@ -68,7 +68,7 @@
     "optimizer_gen": {
         "type": "Adam",
         "args": {
-            "lr": 0.0002
+            "lr": 2e-4
         }
     },
     "hyperparameter": {
@@ -97,7 +97,7 @@
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
-        "monitor": "max val_Mean_Intersection_over_Union_harmonic",
+        "monitor": "off",
         "early_stop": -1,
         "reset_best_mnt": true,
         "tensorboard": true

@@ -44,13 +44,21 @@ class GeneratorMLP(nn.Module):
         if pretrained:
             self._load_pretrained_model(pretrained_path)
             print("Freeze Generator")
-            set_parameter_requires_grad(self.model, freeze=True)
+            self.set_parameter_requires_grad(self.model, freeze=True)
 
     def _load_pretrained_model(self, pretrained_path):
-        pretrain_dict = torch.load(pretrained_path)
+        pretrain_dict = torch.load(pretrained_path, map_location=torch.device('cpu'))
         print("Get Pretrained Weight {%s}" % (pretrain_dict['arch']))
         self.load_state_dict(pretrain_dict['state_dict'], strict=False)
-
+    
+    def _set_parameter_requires_grad(model, freeze=False):
+        if freeze:
+            for param in model.parameters():
+                param.requires_grad = False
+        else:
+            for param in model.parameters():
+                param.requires_grad = True
+    
     def forward(self, embd):
         features = self.model(embd)
         return features
@@ -82,8 +90,8 @@ class DeepLabV2_classifier_600(DeepLabV2):
             pretrained_path=imagenet_pretrained_path,
         )
 
-        # Add additional classifier layer 
         self.pred_conv = nn.Conv2d(600, num_classes, kernel_size=1, stride=1)
+
         # Initialize the classifier
         nn.init.kaiming_normal_(self.pred_conv.weight, mode='fan_out', nonlinearity='relu')
         nn.init.constant_(self.pred_conv.bias, 0)
@@ -135,5 +143,4 @@ class DeepLabV2_classifier_600(DeepLabV2):
 
     def _load_pretrained_model(self, pretrained_path):
         pretrain_dict = torch.load(pretrained_path)
-        print("Get Pretrained Weight {%s}" % (pretrain_dict['arch']))
-        print(self.load_state_dict(pretrain_dict['state_dict'], strict=False))
+        self.load_state_dict(pretrain_dict['state_dict'], strict=False)

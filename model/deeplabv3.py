@@ -212,7 +212,7 @@ class ResNet(nn.Module):
         pretrain_dict = model_zoo.load_url('https://download.pytorch.org/models/resnet101-5d3b4d8f.pth')
         """
 
-        pretrain_dict = torch.load(imagenet_pretrained_path)
+        pretrain_dict = torch.load(imagenet_pretrained_path, map_location=torch.device('cpu'))
         model_dict = {}
         state_dict = self.state_dict()
         for k, v in pretrain_dict.items():
@@ -299,8 +299,6 @@ class ASPP(nn.Module):
             BatchNorm(out_channels),
             nn.ReLU(),
             nn.Dropout(0.5))
-            
-        # self._init_weight()
 
     def forward(self, x):
         res = []
@@ -482,9 +480,8 @@ class DeepLabV3(nn.Module):
                             yield p
 
     def _load_pretrained_model(self, pretrained_path):
-        pretrain_dict = torch.load(pretrained_path)
-        print("Get Pretrained Weight {%s}" % (pretrain_dict['arch']))
-        print(self.load_state_dict(pretrain_dict['state_dict'], strict=False))
+        pretrain_dict = torch.load(pretrained_path, map_location=torch.device('cpu'))
+        self.load_state_dict(pretrain_dict['state_dict'], strict=False)
 
 
 class AtrousSeparableConvolution(nn.Module):
@@ -551,10 +548,6 @@ class DeepLabV3Plus(DeepLabV3):
             print("Using Seperable Conv")
             self.convert_to_separable_conv(self.aspp)
             self.convert_to_separable_conv(self.decoder)
-
-        # if freeze_all_bn:
-        #     self.freeze_all_bn = freeze_all_bn
-        #     self.freeze_bn(backbone=False)
 
         # Re-call freeze_bn methods to freeze BN of new decoder.
         if freeze_all_bn:

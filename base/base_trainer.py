@@ -18,7 +18,8 @@ class BaseTrainer:
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
         self.save_period = cfg_trainer['save_period']
-        self.validation_period = cfg_trainer['validation_period']
+        if 'validation_period' in cfg_trainer:
+            self.validation_period = cfg_trainer['validation_period']
         self.monitor = cfg_trainer.get('monitor', 'off')
         self.reset_best_mnt = cfg_trainer['reset_best_mnt']
         
@@ -36,7 +37,6 @@ class BaseTrainer:
         self.start_epoch = 1
 
         self.checkpoint_dir = config.save_dir
-        print("Log Dir: ", config.log_dir)
         # setup visualization writer instance
         self.writer = TensorboardWriter(config.log_dir, self.logger, cfg_trainer['tensorboard'])
 
@@ -95,6 +95,19 @@ class BaseTrainer:
 
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch)
+
+        # close TensorboardX
+        self.writer.close()
+
+    def test(self):
+        result = self._test()
+        
+        log = {}
+        log.update(result)
+
+        # print logged informations to the screen
+        for key, value in log.items():
+            self.logger.info('    {:15s}: {}'.format(str(key), value))
 
     def _prepare_device(self, n_gpu_use):
         """
@@ -203,4 +216,3 @@ class BaseTrainer:
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         
         self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))
-    
