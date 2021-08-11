@@ -114,11 +114,6 @@ class Trainer(BaseTrainer):
         :return: A log that contains average loss and metric in this epoch.
         """
 
-        # self.visual_encoder.train()
-        # if len(self.device_ids) > 1:
-        #     self.visual_encoder.module.freeze_bn(backbone=True)
-        # else:
-        #     self.visual_encoder.freeze_bn(backbone=True)
         self.visual_encoder.train()
         if isinstance(self.visual_encoder, nn.DataParallel):
             self.visual_encoder.module.freeze_bn()
@@ -221,15 +216,6 @@ class Trainer(BaseTrainer):
         # average train loss per epoch
         log = self.train_metrics.result()
 
-        # if self.THRES == 0:
-        #     if self.do_validation and (epoch == self.config["trainer"]["epochs"]):
-        #         val_log = self._valid_epoch_all(epoch)
-        #         log.update(**{'val_' + k: v for k, v in val_log.items()})
-        # else:
-        #     if self.do_validation:
-        #         val_log = self._valid_epoch(epoch)
-        #         log.update(**{'val_' + k: v for k, v in val_log.items()})
-
         val_flag = False
         if self.do_validation and (epoch % self.validation_period) == 0:
             val_log = self._valid_epoch(epoch)
@@ -240,78 +226,6 @@ class Trainer(BaseTrainer):
             self.lr_scheduler(self.optimizer, 0, epoch)
 
         return log, val_flag
-
-    '''
-    def _valid_epoch(self, epoch):
-        """
-        Validate after training an epoch
-
-        :param epoch: Integer, current training epoch.
-        :return: A log that contains information about validation
-        """
-        self.visual_encoder.eval()
-        self.semantic_encoder.eval()
-        prototype = self.semantic_encoder(self.embeddings)  # [21, 600]
-
-        self.evaluator.reset()
-        log = {}
-        with torch.no_grad():
-            for batch_idx, data in enumerate(tqdm.tqdm(self.val_loader)):
-
-                data['image'], data['label'] = data['image'].to(self.device), data['label'].to(self.device)
-                target = data['label'].cpu().numpy()
-
-                _, real_feature = self.visual_encoder(data['image'])
-                N, C, h, w = real_feature.shape
-
-                real_feature = F.interpolate(real_feature, size=data['image'].size()[2:], mode="bilinear", align_corners=False)
-
-                real_feature = real_feature.permute(0, 2, 3, 1)
-
-                cdist = torch.cdist(real_feature,
-                                    torch.index_select(prototype, 0, torch.Tensor(self.class_idx).long().to(self.device)),
-                                    p=2
-                                    )  # (N, H, W, 21)
-
-                cdist = cdist.permute(0, 3, 1, 2)  # (N, 21, H, W)
-
-                top_k = torch.topk(cdist, k=1, dim=1, largest=False)
-                out = top_k.indices[:, 0, :, :]
-
-                pred = torch.clone(out)
-                # if self.change_label:
-                for uni_cls in out.unique():
-                    pred[out == uni_cls] = self.class_idx[int(uni_cls)]
-
-                pred = pred.cpu().numpy()
-
-                self.evaluator.add_batch(target, pred)
-
-            self.writer.set_step((epoch), 'valid')
-            for met in self.metric_ftns:
-                if len(met()) > 1:
-                    self.valid_metrics.update(met.__name__, [met()['seen'], met()['unseen'], met()['harmonic']], 'seen', 'unseen', 'harmonic', n=1)
-                else:
-                    self.valid_metrics.update(met.__name__, met()['harmonic'], 'harmonic', n=1)
-
-                if 'harmonic' in met().keys():
-                    log.update({met.__name__ + '_harmonic': met()['harmonic']})
-                if 'seen' in met().keys():
-                    log.update({met.__name__ + '_seen': met()['seen']})
-                if 'unseen' in met().keys():
-                    log.update({met.__name__ + '_unseen': met()['unseen']})
-                if 'overall' in met().keys():
-                    log.update({met.__name__ + '_overall': met()['overall']})
-                if 'by_class' in met().keys():
-                    by_class_str = '\n'
-                    for i in range(len(met()['by_class'])):
-                        if i in get_unseen_idx(self.config['data_loader']['args']['n_unseen_classes']):
-                            by_class_str = by_class_str + '%2d *%s %.3f\n' % (i, CONTEXT59[i], met()['by_class'][i])
-                        else:
-                            by_class_str = by_class_str + '%2d  %s %.3f\n' % (i, CONTEXT59[i], met()['by_class'][i])
-                    log.update({met.__name__ + '_by_class': by_class_str})
-        return log
-    '''
     
     def _valid_epoch(self, epoch):
         """
@@ -404,7 +318,7 @@ class Trainer(BaseTrainer):
         
         log = {}
         with torch.no_grad():
-            for thres in [i/10 for i in range(1, 11)]:
+            for thres in [i / 10 for i in range(1, 11)]:
                 self.evaluator.reset()
                 for batch_idx, data in enumerate(tqdm.tqdm(self.val_loader)):
 

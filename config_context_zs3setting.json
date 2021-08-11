@@ -29,8 +29,7 @@
             "n_unseen_classes": 10,
             "embedding": {
                 "load_embedding": true,
-                "w2c_size": 300,
-                "normalize": "max norm"
+                "w2c_size": 300
             },
             "train": {
                 "args": {
@@ -102,7 +101,7 @@
         "epochs": 200,
         "save_dir": "saved_context_0811/",
         "save_period": 1,
-        "validation_period": 1,
+        "validation_period": 50,
         "verbosity": 2,
         "monitor": "max val_Mean_Intersection_over_Union_harmonic",
         "early_stop": -1,

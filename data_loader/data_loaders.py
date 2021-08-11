@@ -165,12 +165,6 @@ class ContextDataLoader():
             fasttxt = self.load_obj("embeddings/context/CaGNet/fasttext")
             w2v = self.load_obj("embeddings/context/CaGNet/word2vec")
 
-            # if self.embeddings_config['normalize']:
-            #     norm = np.sqrt((fasttxt**2).sum(-1)).reshape(-1, 1)
-            #     fasttxt = fasttxt / norm
-            #     norm = np.sqrt((w2v**2).sum(-1)).reshape(-1, 1)
-            #     w2v = w2v / norm
-
             fasttxt = torch.from_numpy(fasttxt)
             w2v = torch.from_numpy(w2v)
 
@@ -191,10 +185,6 @@ class ContextDataLoader():
             embed_arr = torch.from_numpy(embed_arr)
             embed_arr = embed_arr / embed_arr.norm(dim=1).max()
             embed_arr = embed_arr.numpy()
-
-            # if self.embeddings_config['normalize']:
-            #     norm = np.sqrt((embed_arr**2).sum(-1)).reshape(-1, 1)
-            #     embed_arr = embed_arr / norm
 
         self.make_embeddings(embed_arr)
 

@@ -2,10 +2,9 @@ import torch
 import torch.nn as nn
 
 from torch.nn import functional as F
-from model.sync_batchnorm import SynchronizedBatchNorm2d
-from model.deeplabv3 import DeepLabV3Plus
-from model.deeplabv3_fanin import DeepLabV3Plus as DeepLabV3Plus_fanin
 from model.deeplabv2 import DeepLabV2
+from model.deeplabv3 import DeepLabV3Plus
+from model.sync_batchnorm import SynchronizedBatchNorm2d
 
 
 class GeneratorMLP(nn.Module):

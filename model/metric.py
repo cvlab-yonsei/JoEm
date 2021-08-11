@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Evaluator:
     def __init__(self, num_class, seen_classes_idx=None, unseen_classes_idx=None):
         self.num_class = num_class
