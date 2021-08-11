@@ -73,4 +73,4 @@ python train_pascal_zs3setting.py -c configs/config_pascal_zs3setting.json -d 0,
 ```
 
 ## Acknowledgements
-* Template is borrowed from [pytorch-template](https://github.com/victoresque/pytorch-template).
+* This template is borrowed from [pytorch-template](https://github.com/victoresque/pytorch-template).
