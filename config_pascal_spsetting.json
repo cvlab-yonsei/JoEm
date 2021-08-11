@@ -1,0 +1,105 @@
+{
+    "name": "pascal_spsetting_fan_out_aspp_bias_true_up_scale_ce",
+    "n_gpu": 4,
+    "arch": {
+        "type": "DeepLabV2_classifier_600",
+        "args": {
+            "num_classes" : 21,
+            "freeze_all_bn": false,
+            "freeze_backbone_bn": true,
+            "backbone_pretrained": true,
+            "imagenet_pretrained_path": "weight/pretrained/imagenet/deeplabv2/resnet_backbone_pretrained_imagenet_resnet101-5d3b4d8f.pth"
+        }
+    },
+    "arch_gen": {
+        "type": "GeneratorMLP",
+        "args": {
+            "embed_dim": 600,
+            "feature_dim": 600,
+            "hidden_size": 0
+        }
+    },
+    "data_loader": {
+        "type": "VOCDataLoader",
+        "args": {
+            "n_unseen_classes": 5,
+            "embedding": {
+                "load_embedding": true,
+                "w2c_size": 600,
+                "embedding_dataset": "spnet"
+            },
+            "train": {
+                "args": {
+                    "split": "train_aug",
+                    "transform": true,
+                    "transform_args": {
+                        "base_size": 512,
+                        "crop_size": 321
+                    },
+                    "remv_unseen_img": false,
+                    "ignore_bg": true,
+                    "ignore_unseen": true
+                },
+                "batch_size": 24,
+                "shuffle": true
+            },
+            "val": {
+                "args": {
+                    "split": "val",
+                    "transform": false,
+                    "ignore_bg": true,
+                    "ignore_unseen": false
+                },
+                "batch_size": 1,
+                "shuffle": false
+            },
+            "num_workers": 4,
+            "pin_memory": true
+        }
+    },
+    "optimizer": {
+        "type": "SGD",
+        "args": {
+            "lr": 0.00025,
+            "weight_decay": 0.0001,
+            "momentum": 0.9
+        }
+    },
+    "optimizer_gen": {
+        "type": "Adam",
+        "args": {
+            "lr": 0.0002
+        }
+    },
+    "hyperparameter": {
+        "ratio": 0.500,
+        "lamb": 1,
+        "temperature": 5,
+        "sigma": 0.7
+    },
+    "lr_scheduler": {
+        "type": "LR_Scheduler",
+        "args": {
+            "mode": "poly"
+        }
+    },
+    "evaluator": {
+        "type": "Evaluator",
+        "args": {}
+    },
+    "metrics": [
+        "Pixel_Accuracy",
+        "Pixel_Accuracy_Class",
+        "Mean_Intersection_over_Union"
+    ],
+    "trainer": {
+        "epochs": 50,
+        "save_dir": "saved/",
+        "save_period": 1,
+        "verbosity": 2,
+        "monitor": "max val_Mean_Intersection_over_Union_harmonic",
+        "early_stop": -1,
+        "reset_best_mnt": true,
+        "tensorboard": true
+    }
+}
