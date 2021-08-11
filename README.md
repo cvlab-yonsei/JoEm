@@ -34,7 +34,7 @@ The structure of data path should be organized as follows:
 ```
 
 ### Training
-We use DeepLabV3+ with ResNet-101 as our visual encoder. Following [ZS3Net](https://github.com/valeo/ZS3), ResNet-101 is initialized with the pre-trained weights for ImageNet classification, where training samples of seen classes are used only. ([weights here](https://github.com/))
+We use DeepLabV3+ with ResNet-101 as our visual encoder. Following [ZS3Net](https://github.com/valeoai/ZS3), ResNet-101 is initialized with the pre-trained weights for ImageNet classification, where training samples of seen classes are used only. ([weights here](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/resnet_backbone_pretrained_imagenet_wo_pascalvoc.pth))
 
 #### VOC
 ```Shell
@@ -42,11 +42,11 @@ python train_pascal_zs3setting.py -c configs/config_pascal_zs3setting.json -d 0,
 ```
 
 * Trained visual and semantic encoder weights
-    -  [2 unseen classes](https://github.com/)
-    -  [4 unseen classes](https://github.com/)
-    -  [6 unseen classes](https://github.com/)
-    -  [8 unseen classes](https://github.com/)
-    -  [10 unseen classes](https://github.com/)
+    -  [2 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/voc_zs3_unseen_02.zip)
+    -  [4 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/voc_zs3_unseen_04.zip)
+    -  [6 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/voc_zs3_unseen_06.zip)
+    -  [8 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/voc_zs3_unseen_08.zip)
+    -  [10 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/voc_zs3_unseen_10.zip)
 
 
 #### CONTEXT
@@ -55,11 +55,11 @@ python train_context_zs3setting.py -c configs/config_context_zs3setting.json -d 
 ```
 
 * Trained visual and semantic encoder weights
-    -  [2 unseen classes](https://github.com/)
-    -  [4 unseen classes](https://github.com/)
-    -  [6 unseen classes](https://github.com/)
-    -  [8 unseen classes](https://github.com/)
-    -  [10 unseen classes](https://github.com/)
+    -  [2 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/context_zs3_unseen_02.zip)
+    -  [4 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/context_zs3_unseen_04.zip)
+    -  [6 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/context_zs3_unseen_06.zip)
+    -  [8 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/context_zs3_unseen_08.zip)
+    -  [10 unseen classes](https://github.com/cvlab-yonsei/JoEm/releases/download/v1.0/context_zs3_unseen_10.zip)
 
 ### Testing
 
